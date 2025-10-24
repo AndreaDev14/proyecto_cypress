@@ -132,7 +132,7 @@ jobs:
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
             *${{ env.TEST_SUITE }} :bug:*
-            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }})
+            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }})
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
@@ -150,7 +150,7 @@ jobs:
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
             *${{ env.TEST_SUITE }} :white_check_mark:*
-            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }})
+            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }})
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
