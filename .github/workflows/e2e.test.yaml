@@ -1,7 +1,5 @@
-# This workflow will run the end-to-end tests 
 name: E2E
 
-# Controls when the workflow will run
 on: 
   workflow_dispatch:
     inputs:
@@ -35,7 +33,7 @@ on:
 jobs:
   run:
     name: Cypress run
-    timeout-minutes: 15
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     container:
       image: cypress/included:13.7.0
@@ -51,7 +49,6 @@ jobs:
           BROWSER: ${{ github.event.inputs.Browser || 'chrome' }}
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "Scheduled run detected, using default values."
             ENVIRONMENT='production'
             TEST='sanity test'
           fi
@@ -60,11 +57,14 @@ jobs:
           echo "Test Suite: $TEST"
           echo "Browser: $BROWSER"
 
-          # Guardar variables para GitHub Actions
+          # Variables para GitHub Actions
           echo "TEST_SUITE=$TEST" >> "$GITHUB_ENV"
           TEST_SUITE_SAFE=$(echo "$TEST" | tr ' ' '_')
           echo "TEST_SUITE_SAFE=$TEST_SUITE_SAFE" >> "$GITHUB_ENV"
+          ENCODED_TEST_SUITE=$(echo "$TEST" | python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.stdin.read().strip()))")
+          echo "ENCODED_TEST_SUITE=$ENCODED_TEST_SUITE" >> "$GITHUB_ENV"
 
+          # Location según environment
           case $ENVIRONMENT in
             production)
               echo "LOCATION=https://www.saucedemo.com/v1/" >> "$GITHUB_ENV"
@@ -93,54 +93,38 @@ jobs:
           BROWSER: ${{ env.BROWSER }}          
         run: npm run $TEST_SUITE -- --browser $BROWSER
 
-      - name: Upload Cypress Screenshots
+      - name: Extract failed test info
         if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Cypress Error Screenshots
-          path: cypress/reports/screenshots/**/*.png
+        run: |
+          # Full titles
+          FAILED=$(node -e "const data=require('./cypress/reports/index.json'); const t=[]; function f(o){if(o&&typeof o==='object'){if(o.state==='failed'&&o.fullTitle)t.push(o.fullTitle);for(const k in o)f(o[k]);}} f(data); console.log(t.join(', '))")
+          echo "FAILED_TESTS=$FAILED" >> $GITHUB_ENV
+          # Error message
+          ERROR=$(node -e "const data=require('./cypress/reports/index.json'); let msg=''; function f(o){if(o&&typeof o==='object'){if(o.state==='failed'&&o.err&&o.err.message&&!msg) msg=o.err.message; for(const k in o) f(o[k]);}} f(data); console.log(msg)")
+          echo "ERROR_MESSAGE=$ERROR" >> $GITHUB_ENV
+          # Screenshot folder
+          FOLDER=$(find cypress/reports/screenshots -mindepth 1 -maxdepth 1 -type d | head -n 1 | xargs basename)
+          echo "SCREENSHOT_FOLDER=$FOLDER" >> $GITHUB_ENV
+          # Screenshot file name URL-encoded
+          FILE_PATH=$(find cypress/reports/screenshots -type f -name '*.png' | head -n 1)
+          FILE_NAME=$(basename "$FILE_PATH")
+          FILE_NAME_ENCODED=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$FILE_NAME")
+          echo "SCREENSHOT_NAME=$FILE_NAME_ENCODED" >> $GITHUB_ENV
 
       - name: Get version from Cypress
         if: always()
         run: |
           echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
-          echo "version: $(cat version.txt)"
 
-      - name: Extract failed test full titles from json
-        if: failure()
-        run: |
-          FAILED=$(node -e "const data = require('./cypress/reports/index.json'); const titles = []; function findFails(obj) { if (obj && typeof obj === 'object') { if (obj.state === 'failed' && obj.fullTitle) titles.push(obj.fullTitle); for (const key in obj) findFails(obj[key]); } } findFails(data); console.log(titles.join(', '));")
-          echo "FAILED_TESTS=$FAILED" >> $GITHUB_ENV
-          echo "Failed tests: $FAILED"
-
-      - name: Extract failed test error message from json
-        if: failure()
-        run: |
-          ERROR=$(node -e "const data = require('./cypress/reports/index.json'); let msg = ''; function findFail(obj) { if (obj && typeof obj === 'object') { if (obj.state === 'failed' && obj.err && obj.err.message && !msg) msg = obj.err.message; for (const key in obj) findFail(obj[key]); } } findFail(data); console.log(msg);")
-          echo "ERROR_MESSAGE=$ERROR" >> $GITHUB_ENV
-          echo "Error message: $ERROR"
-
-      - name: Extract screenshot folder name
-        if: failure()
-        run: |
-          FOLDER=$(find cypress/reports/screenshots -mindepth 1 -maxdepth 1 -type d | head -n 1 | xargs basename)
-          echo "SCREENSHOT_FOLDER=$FOLDER" >> $GITHUB_ENV
-          echo "Screenshot folder: $FOLDER"
-
-      - name: Extract screenshot name (URL-encoded)
-        if: failure()
-        run: |
-          FILE_PATH=$(find cypress/reports/screenshots -type f -name '*.png' | head -n 1)
-          FILE_NAME=$(basename "$FILE_PATH")
-          FILE_NAME_ENCODED=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$FILE_NAME")
-          echo "SCREENSHOT_NAME=$FILE_NAME_ENCODED" >> $GITHUB_ENV
-          echo "Screenshot name (encoded): $FILE_NAME_ENCODED"
-
-      - name: Encode test suite for URL
-        if: failure()
-        run: |
-          ENCODED_TEST_SUITE=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${{ env.TEST_SUITE }}'))")
-          echo "ENCODED_TEST_SUITE=$ENCODED_TEST_SUITE" >> $GITHUB_ENV
+      - name: Deploy to GitHub Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.GH_PAGES_TOKEN }}
+          publish_dir: ./cypress/reports
+          destination_dir: ${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE_SAFE }}
+          publish_branch: gh-pages
+          external_repository: andreadev14/cypress_reports
 
       - name: Notify Slack on Failure
         if: failure()
@@ -150,9 +134,9 @@ jobs:
           SLACK_COLOR: '#FF0000'
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
-            *:cypress_logo:  | ${{ env.TEST_SUITE }} :bug: *
+            *:cypress_logo: | ${{ env.TEST_SUITE }} :bug: *
             [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE_SAFE }})
-            [Screenshot Error](https://andreadev14.github.ion/cypress_reports/blob/gh-pages/${{ env.ENVIRONMENT }}/${{ env.ENCODED_TEST_SUITE }}/screenshots/${{ env.SCREENSHOT_FOLDER }}/${{ env.SCREENSHOT_NAME }})
+            [Screenshot Error](https://github.com/chbazan/abbaco_cypress_reports/blob/gh-pages/${{ env.ENVIRONMENT }}/${{ env.ENCODED_TEST_SUITE }}/screenshots/${{ env.SCREENSHOT_FOLDER }}/${{ env.SCREENSHOT_NAME }})
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
@@ -169,7 +153,7 @@ jobs:
           SLACK_COLOR: 'good'
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
-            *:cypress_logo:  | ${{ env.TEST_SUITE }} :bug: *
+            *:cypress_logo: | ${{ env.TEST_SUITE }} :white_check_mark: *
             [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE_SAFE }})
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
@@ -184,12 +168,9 @@ jobs:
           name: Cypress Test Report
           path: cypress/reports/index.html
 
-      - name: Deploy to GitHub Pages
-        if: always()
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload Cypress Screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
         with:
-          personal_token: ${{ secrets.GH_PAGES_TOKEN }}
-          publish_dir: ./cypress/reports
-          destination_dir: ${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE_SAFE }}
-          publish_branch: gh-pages
-          external_repository: andreadev14/cypress_reports
+          name: Cypress Error Screenshots
+          path: cypress/reports/screenshots/**/*.png
