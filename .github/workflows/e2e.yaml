@@ -151,8 +151,8 @@ jobs:
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
             * ${{ env.TEST_SUITE }} :bug: *
-            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
-            [Screenshot Error](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.ENCODED_TEST_SUITE }}/screenshots/${{ env.SCREENSHOT_FOLDER }}/${{ env.SCREENSHOT_NAME }})
+            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
+            [Screenshot Error](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.ENCODED_TEST_SUITE }}/screenshots/${{ env.SCREENSHOT_FOLDER }}/${{ env.SCREENSHOT_NAME }})
 
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
@@ -171,7 +171,7 @@ jobs:
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
             *  | ${{ env.TEST_SUITE }} :bug: *
-            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
+            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
             
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
