@@ -1,7 +1,7 @@
 import Constants from "../../support/constants";
 describe('Login en SauceDemo usando .env', () => {
   beforeEach(() => {
-    cy.visit(Constants.CYPRESS_BASE_URL) // baseUrl viene del .env
+    cy.visit(Constants.LOCATION) // baseUrl viene del .env
   })
 
   it('Debería iniciar sesión correctamente con credenciales válidas', () => {

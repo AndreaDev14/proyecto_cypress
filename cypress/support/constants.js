@@ -1,7 +1,7 @@
 const nodeEnvironmentVariables = Cypress.env('NODE_ENV') ?? {};
 
 const knownVariables = [
-  "CYPRESS_BASE_URL",
+  "LOCATION",
   "CYPRESS_USER_EMAIL",
   "CYPRESS_USER_PASSWORD",
 
@@ -9,7 +9,7 @@ const knownVariables = [
 
 /**
  * @typedef {Object} Constants
- * @property {string} CYPRESS_BASE_URL - The location of the Pepper application.
+ * @property {string} LOCATION - The location of the Pepper application.
  * @property {string} CYPRESS_USER_EMAIL - Username that will login into the app.
  * @property {string} CYPRESS_USER_PASSWORD - Password of the given user.
 
