@@ -36,7 +36,7 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     container:
-      image: cypress/included:13.7.0
+      image: cypress/included:15.5.0
       options: --user 1001
     steps:
       - name: Checkout
@@ -61,6 +61,7 @@ jobs:
               ;;
           esac
 
+          # Export variables
           echo "LOCATION=$LOCATION" >> $GITHUB_ENV
           echo "TEST_SUITE=$TEST" >> $GITHUB_ENV
           echo "BROWSER=$BROWSER" >> $GITHUB_ENV
@@ -120,8 +121,14 @@ jobs:
 
       - name: Sanitize folder name
         run: |
-          SAFE_TEST_SUITE=$(echo "${{ env.TEST_SUITE }}" | tr ' /' '-')
+          SAFE_TEST_SUITE=$(echo "${{ env.TEST_SUITE }}" | tr ' /' '-' | tr -d '\n')
           echo "SAFE_TEST_SUITE=$SAFE_TEST_SUITE" >> $GITHUB_ENV
+
+      - name: Debug deploy paths
+        run: |
+          echo "ENVIRONMENT=$ENVIRONMENT"
+          echo "SAFE_TEST_SUITE=$SAFE_TEST_SUITE"
+          echo "publish_dir=./cypress/reports"
 
       - name: Notify Slack on Failure
         if: failure()
@@ -131,13 +138,14 @@ jobs:
           SLACK_COLOR: '#FF0000'
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
-            *${{ env.TEST_SUITE }} :bug:*
-            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }})
+            *Test Suite:* ${{ env.TEST_SUITE }}
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
-            *Failed Test:* ${{ env.FAILED_TESTS }}
+            *Failed Test(s):* ${{ env.FAILED_TESTS }}
             *Error Message:* ${{ env.ERROR_MESSAGE }}
+            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }})
+            [Screenshot Error](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }}/screenshots/${{ env.SCREENSHOT_FOLDER }}/${{ env.SCREENSHOT_NAME }})
           SLACK_USERNAME: 'GitHub Actions'
           SLACK_ICON_EMOJI: ':warning:'
 
@@ -149,11 +157,11 @@ jobs:
           SLACK_COLOR: 'good'
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
-            *${{ env.TEST_SUITE }} :white_check_mark:*
-            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }})
+            *Test Suite:* ${{ env.TEST_SUITE }}
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
+            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }})
           SLACK_USERNAME: 'GitHub Actions'
           SLACK_ICON_EMOJI: ':white_check_mark:'
 
