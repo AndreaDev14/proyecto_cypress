@@ -6,7 +6,7 @@ describe('Login en SauceDemo usando .env', () => {
 
   it('Debería iniciar sesión correctamente con credenciales válidas', () => {
     cy.get('#user-name').type(Constants.CYPRESS_USER_EMAIL)
-    cy.get('#password').type(Constants.CYPRESS_USER_PASSWORD)
+    cy.get('#password').type('1234')
     cy.get('#login-button').click()
 
      cy.get('[class="footer_copy"]')
