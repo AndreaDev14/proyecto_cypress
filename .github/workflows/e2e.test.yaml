@@ -163,6 +163,11 @@ jobs:
         run: |
           ENCODED_TEST_SUITE=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${{ env.TEST_SUITE }}'))")
           echo "ENCODED_TEST_SUITE=$ENCODED_TEST_SUITE" >> $GITHUB_ENV
+      - name: Get version from Cypress
+        if: always()
+        run: |
+          echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
+          echo "version: $(cat version.txt)"
 
        # Notification to Slack using the action: https://github.com/rtCamp/action-slack-notify
       - name: Notify Slack on Failure
