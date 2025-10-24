@@ -1,12 +1,9 @@
 # This workflow will run the end-to-end tests 
-name:  E2E
+name: E2E
 
 # Controls when the workflow will run
 on: 
-  # Manually trigger the workflow from the Actions tab in GitHub
   workflow_dispatch:
-    # Set the inputs for the workflow, they act as parameters like in jenkins
-    # Inputs can be consumed after by the workflow by using ${{ github.event.inputs.<input_id> }}
     inputs:
       Environment:
         description: 'Environment to run the tests on'
@@ -21,7 +18,6 @@ on:
         required: true
         default: 'chrome'
         type: choice
-        # Options for browser are based on the available browsers in the cypress/included image
         options:
           - 'chrome'
           - 'firefox'
@@ -32,39 +28,24 @@ on:
         required: true
         default: 'sanity test'
         type: choice
-        # Options for test are based on the available e2e scripts in the package.json
         options:
           - 'smoke test'
           - 'sanity test'
-      
 
-  # schedule:
-  #   # # Sanity Test (08:30 AM Buenos Aires)
-  #   - cron: '30 11 * * *' 
-  #   # # Sanity Test (3:00 PM Buenos Aires)
-  #   - cron: '0 18 * * *' 
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job identified with "run", it will perform the end-to-end tests
   run:
     name: Cypress run
-    timeout-minutes: 15 # The job will be canceled after 15 minutes
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     container:
-      image: cypress/included:13.7.0 # This image contains cypress, the necessary dependencies and few browsers
-      options: --user 1001 # This is needed in order to be able to open firefox in the container
+      image: cypress/included:13.7.0
+      options: --user 1001
     steps:
-      # Checks-out the repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout
         uses: actions/checkout@v4
-      
-      # Setting up the environment
-      # This step will configure the environment variables based on the inputs
-      # Then it will set the results through github outputs for the next step
+
       - name: Configure environment
         env:
-          # In order to use variables from github in our script we need to set them as environment variables
           ENVIRONMENT: ${{ github.event.inputs.Environment || 'production' }}
           TEST: ${{ github.event.inputs.Test || 'sanity test' }}
           BROWSER: ${{ github.event.inputs.Browser || 'chrome' }}
@@ -73,21 +54,25 @@ jobs:
             echo "Scheduled run detected, using default values."
             ENVIRONMENT='production'
             TEST='sanity test'
-             fi
+          fi
 
           echo "Configured Environment: $ENVIRONMENT"
           echo "Test Suite: $TEST"
           echo "Browser: $BROWSER"
 
+          # Guardar variables para GitHub Actions
+          echo "TEST_SUITE=$TEST" >> "$GITHUB_ENV"
+          TEST_SUITE_SAFE=$(echo "$TEST" | tr ' ' '_')
+          echo "TEST_SUITE_SAFE=$TEST_SUITE_SAFE" >> "$GITHUB_ENV"
+
           case $ENVIRONMENT in
             production)
-              echo "LOCATION="https://www.saucedemo.com/v1/" >> "$GITHUB_ENV"
+              echo "LOCATION=https://www.saucedemo.com/v1/" >> "$GITHUB_ENV"
               ;;
             testing)
-              echo "LOCATION="https://www.saucedemo.com/v1/" >> "$GITHUB_ENV"
+              echo "LOCATION=https://www.saucedemo.com/v1/" >> "$GITHUB_ENV"
               ;;
           esac
-          
 
       - name: Setup dependencies
         run: |
@@ -100,27 +85,21 @@ jobs:
         run: npm run cy:verify
 
       - name: Run tests
-        # Setting up the environment variables for this step
         env:
-          # In order to use variables from github in our .sh script we need to set them as environment variables
-          # Retrieve secrets from the repository settings
           CYPRESS_USER_EMAIL: ${{ secrets.CYPRESS_USER_EMAIL }}
           CYPRESS_USER_PASSWORD: ${{ secrets.CYPRESS_USER_PASSWORD }}
           LOCATION: ${{ env.LOCATION }}
           TEST_SUITE: ${{ env.TEST_SUITE }}
-          # Retrieve the browser from the workflow input
           BROWSER: ${{ env.BROWSER }}          
         run: npm run $TEST_SUITE -- --browser $BROWSER
 
-      # Step to upload screenshots of test failures
       - name: Upload Cypress Screenshots
-        if: failure() # Only run this step if the previous steps fail
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: Cypress Error Screenshots
           path: cypress/reports/screenshots/**/*.png
 
-      # Step to get version from version.txt
       - name: Get version from Cypress
         if: always()
         run: |
@@ -154,7 +133,6 @@ jobs:
           FILE_PATH=$(find cypress/reports/screenshots -type f -name '*.png' | head -n 1)
           FILE_NAME=$(basename "$FILE_PATH")
           FILE_NAME_ENCODED=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$FILE_NAME")
-
           echo "SCREENSHOT_NAME=$FILE_NAME_ENCODED" >> $GITHUB_ENV
           echo "Screenshot name (encoded): $FILE_NAME_ENCODED"
 
@@ -163,24 +141,18 @@ jobs:
         run: |
           ENCODED_TEST_SUITE=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${{ env.TEST_SUITE }}'))")
           echo "ENCODED_TEST_SUITE=$ENCODED_TEST_SUITE" >> $GITHUB_ENV
-      - name: Get version from Cypress
-        if: always()
-        run: |
-          echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
-          echo "version: $(cat version.txt)"
 
-       # Notification to Slack using the action: https://github.com/rtCamp/action-slack-notify
       - name: Notify Slack on Failure
         if: failure()
         uses: rtCamp/action-slack-notify@v2
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL  }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_COLOR: '#FF0000'
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
             *:cypress_logo:  | ${{ env.TEST_SUITE }} :bug: *
-            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
-            # # [Screenshot Error](https://github.com/chbazan/abbaco_cypress_reports/blob/gh-pages/${{ env.ENVIRONMENT }}/${{ env.ENCODED_TEST_SUITE }}/screenshots/${{ env.SCREENSHOT_FOLDER }}/${{ env.SCREENSHOT_NAME }})
+            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE_SAFE }})
+            [Screenshot Error](https://github.com/chbazan/abbaco_cypress_reports/blob/gh-pages/${{ env.ENVIRONMENT }}/${{ env.ENCODED_TEST_SUITE }}/screenshots/${{ env.SCREENSHOT_FOLDER }}/${{ env.SCREENSHOT_NAME }})
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
@@ -198,15 +170,13 @@ jobs:
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
             *:cypress_logo:  | ${{ env.TEST_SUITE }} :bug: *
-            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
-            
+            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE_SAFE }})
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
           SLACK_USERNAME: 'GitHub Actions'
           SLACK_ICON_EMOJI: ':white_check_mark:'
 
-      # Step to upload test results as artifacts
       - name: Upload Cypress Test Results
         if: always()
         uses: actions/upload-artifact@v4
@@ -220,6 +190,6 @@ jobs:
         with:
           personal_token: ${{ secrets.GH_PAGES_TOKEN }}
           publish_dir: ./cypress/reports
-          destination_dir: ${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }}
+          destination_dir: ${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE_SAFE }}
           publish_branch: gh-pages
           external_repository: andreadev14/cypress_reports
