@@ -46,13 +46,13 @@ jobs:
       - name: Configure environment
         env:
           ENVIRONMENT: ${{ github.event.inputs.Environment || 'production' }}
-          TEST: ${{ github.event.inputs.Test || 'sanity test' }}
+          TEST: ${{ github.event.inputs.Test || 'sanity' }}
           BROWSER: ${{ github.event.inputs.Browser || 'chrome' }}
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
             echo "Scheduled run detected, using default values."
             ENVIRONMENT='production'
-            TEST='sanity test'
+            TEST='sanity'
             BROWSER='chrome'
           fi
 
@@ -142,7 +142,7 @@ jobs:
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
             *${{ env.TEST_SUITE }} :bug:*
-            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
+            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
@@ -160,7 +160,7 @@ jobs:
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
             *${{ env.TEST_SUITE }} :white_check_mark:*
-            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
+            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
