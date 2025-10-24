@@ -1,7 +1,7 @@
-# This workflow will run the end-to-end tests 
+# This workflow will run the end-to-end tests
 name: TESTS E2E
 
-on: 
+on:
   workflow_dispatch:
     inputs:
       Environment:
@@ -39,23 +39,17 @@ jobs:
     container:
       image: cypress/included:13.7.0
       options: --user 1001
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Configure environment
         env:
           ENVIRONMENT: ${{ github.event.inputs.Environment || 'production' }}
           TEST: ${{ github.event.inputs.Test || 'sanity test' }}
           BROWSER: ${{ github.event.inputs.Browser || 'chrome' }}
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "Scheduled run detected, using default values."
-            ENVIRONMENT='production'
-            TEST='sanity test'
-            BROWSER='chrome'
-          fi
-
           echo "Configured Environment: $ENVIRONMENT"
           echo "Test Suite: $TEST"
           echo "Browser: $BROWSER"
@@ -69,12 +63,11 @@ jobs:
               ;;
           esac
 
-          # Export all needed variables
           echo "LOCATION=$LOCATION" >> $GITHUB_ENV
           echo "TEST_SUITE=$TEST" >> $GITHUB_ENV
           echo "BROWSER=$BROWSER" >> $GITHUB_ENV
-    
-      - name: Setup dependencies
+
+      - name: Install dependencies
         run: |
           npm config set registry https://registry.npmjs.org/
           for i in 1 2 3; do
@@ -82,18 +75,18 @@ jobs:
           done
 
       - name: Check Cypress installation
-        run: npm run cy:verify
+        run: npx cypress verify
 
-      - name: Run tests
+      - name: Run Cypress tests
         env:
-          CYPRESS_USER_EMAIL: ${{ secrets.CYPRESS_USER_EMAIL}}
-          CYPRESS_USER_PASSWORD: ${{ secrets.CYPRESS_USER_PASSWORD}}
+          CYPRESS_USER_EMAIL: ${{ secrets.CYPRESS_USER_EMAIL }}
+          CYPRESS_USER_PASSWORD: ${{ secrets.CYPRESS_USER_PASSWORD }}
           LOCATION: ${{ env.LOCATION }}
           TEST_SUITE: ${{ env.TEST_SUITE }}
           BROWSER: ${{ env.BROWSER }}
-        run: npm run $TEST_SUITE -- --browser $BROWSER
+        run: npm run "$TEST_SUITE" -- --browser "$BROWSER"
 
-      - name: Upload Cypress Screenshots
+      - name: Upload screenshots (if failed)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -103,38 +96,58 @@ jobs:
       - name: Get version from Cypress
         if: always()
         run: |
-          echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
-          echo "version: $(cat version.txt)"
+          if [ -f version.txt ]; then
+            echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
+            echo "version: $(cat version.txt)"
+          else
+            echo "VERSION=unknown" >> $GITHUB_ENV
+          fi
 
-      - name: Extract failed test full titles from json
+      - name: Extract failed test titles
         if: failure()
         run: |
-          FAILED=$(node -e "const data = require('./cypress/reports/index.json'); const titles = []; function findFails(obj) { if (obj && typeof obj === 'object') { if (obj.state === 'failed' && obj.fullTitle) titles.push(obj.fullTitle); for (const key in obj) findFails(obj[key]); } } findFails(data); console.log(titles.join(', '));")
-          echo "FAILED_TESTS=$FAILED" >> $GITHUB_ENV
-          echo "Failed tests: $FAILED"
+          if [ -f "./cypress/reports/index.json" ]; then
+            FAILED=$(node -e "const data = require('./cypress/reports/index.json'); const titles = []; function findFails(obj){if(obj && typeof obj==='object'){if(obj.state==='failed' && obj.fullTitle) titles.push(obj.fullTitle); for(const key in obj) findFails(obj[key]);}} findFails(data); console.log(titles.join(', '));")
+            echo "FAILED_TESTS=$FAILED" >> $GITHUB_ENV
+            echo "Failed tests: $FAILED"
+          else
+            echo "FAILED_TESTS=none" >> $GITHUB_ENV
+          fi
 
-      - name: Extract failed test error message from json
+      - name: Extract error message
         if: failure()
         run: |
-          ERROR=$(node -e "const data = require('./cypress/reports/index.json'); let msg = ''; function findFail(obj) { if (obj && typeof obj === 'object') { if (obj.state === 'failed' && obj.err && obj.err.message && !msg) msg = obj.err.message; for (const key in obj) findFail(obj[key]); } } findFail(data); console.log(msg);")
-          echo "ERROR_MESSAGE=$ERROR" >> $GITHUB_ENV
-          echo "Error message: $ERROR"
+          if [ -f "./cypress/reports/index.json" ]; then
+            ERROR=$(node -e "const data = require('./cypress/reports/index.json'); let msg=''; function findFail(obj){if(obj && typeof obj==='object'){if(obj.state==='failed' && obj.err && obj.err.message && !msg) msg=obj.err.message; for(const key in obj) findFail(obj[key]);}} findFail(data); console.log(msg);")
+            echo "ERROR_MESSAGE=$ERROR" >> $GITHUB_ENV
+            echo "Error message: $ERROR"
+          else
+            echo "ERROR_MESSAGE=Report not found" >> $GITHUB_ENV
+          fi
 
-      - name: Extract screenshot folder name
+      - name: Extract screenshot folder
         if: failure()
         run: |
-          FOLDER=$(find cypress/reports/screenshots -mindepth 1 -maxdepth 1 -type d | head -n 1 | xargs basename)
-          echo "SCREENSHOT_FOLDER=$FOLDER" >> $GITHUB_ENV
-          echo "Screenshot folder: $FOLDER"
+          if [ -d "cypress/reports/screenshots" ]; then
+            FOLDER=$(find cypress/reports/screenshots -mindepth 1 -maxdepth 1 -type d | head -n 1 | xargs basename)
+            echo "SCREENSHOT_FOLDER=$FOLDER" >> $GITHUB_ENV
+            echo "Screenshot folder: $FOLDER"
+          else
+            echo "SCREENSHOT_FOLDER=none" >> $GITHUB_ENV
+          fi
 
-      - name: Extract screenshot name (URL-encoded)
+      - name: Extract screenshot name (encoded)
         if: failure()
         run: |
-          FILE_PATH=$(find cypress/reports/screenshots -type f -name '*.png' | head -n 1)
-          FILE_NAME=$(basename "$FILE_PATH")
-          FILE_NAME_ENCODED=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$FILE_NAME")
-          echo "SCREENSHOT_NAME=$FILE_NAME_ENCODED" >> $GITHUB_ENV
-          echo "Screenshot name (encoded): $FILE_NAME_ENCODED"
+          if [ -d "cypress/reports/screenshots" ]; then
+            FILE_PATH=$(find cypress/reports/screenshots -type f -name '*.png' | head -n 1)
+            FILE_NAME=$(basename "$FILE_PATH")
+            FILE_NAME_ENCODED=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$FILE_NAME")
+            echo "SCREENSHOT_NAME=$FILE_NAME_ENCODED" >> $GITHUB_ENV
+            echo "Screenshot name (encoded): $FILE_NAME_ENCODED"
+          else
+            echo "SCREENSHOT_NAME=none" >> $GITHUB_ENV
+          fi
 
       - name: Encode test suite for URL
         if: failure()
@@ -150,9 +163,9 @@ jobs:
           SLACK_COLOR: '#FF0000'
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
-            * ${{ env.TEST_SUITE }} :bug: *
-            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
-            [Screenshot Error](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.ENCODED_TEST_SUITE }}/screenshots/${{ env.SCREENSHOT_FOLDER }}/${{ env.SCREENSHOT_NAME }})
+            *${{ env.TEST_SUITE }} ❌*
+            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
+            [Screenshot Error](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.ENCODED_TEST_SUITE }}/screenshots/${{ env.SCREENSHOT_FOLDER }}/${{ env.SCREENSHOT_NAME }})
 
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
@@ -170,16 +183,16 @@ jobs:
           SLACK_COLOR: 'good'
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
-            *  | ${{ env.TEST_SUITE }} :bug: *
-            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
-            
+            *${{ env.TEST_SUITE }} ✅*
+            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
+
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
           SLACK_USERNAME: 'GitHub Actions'
           SLACK_ICON_EMOJI: ':white_check_mark:'
 
-      - name: Upload Cypress Test Results
+      - name: Upload Cypress Test Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -190,7 +203,7 @@ jobs:
         if: always()
         uses: peaceiris/actions-gh-pages@v4
         with:
-          personal_token: ${{ secrets.GH_PAGES_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./cypress/reports
           destination_dir: ${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }}
           publish_branch: gh-pages
