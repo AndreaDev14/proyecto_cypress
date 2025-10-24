@@ -1,4 +1,3 @@
-# This workflow will run the end-to-end tests 
 name: TESTS E2E
 
 on: 
@@ -23,7 +22,7 @@ on:
           - 'edge'
           - 'electron'
       Test:
-        description: 'Test to run'
+        description: 'Test suite to run'
         required: true
         default: 'smoke test'
         type: choice
@@ -46,16 +45,9 @@ jobs:
       - name: Configure environment
         env:
           ENVIRONMENT: ${{ github.event.inputs.Environment || 'production' }}
-          TEST: ${{ github.event.inputs.Test || 'sanity' }}
+          TEST: ${{ github.event.inputs.Test || 'sanity test' }}
           BROWSER: ${{ github.event.inputs.Browser || 'chrome' }}
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "Scheduled run detected, using default values."
-            ENVIRONMENT='production'
-            TEST='sanity'
-            BROWSER='chrome'
-          fi
-
           echo "Configured Environment: $ENVIRONMENT"
           echo "Test Suite: $TEST"
           echo "Browser: $BROWSER"
@@ -69,7 +61,6 @@ jobs:
               ;;
           esac
 
-          # Export all needed variables
           echo "LOCATION=$LOCATION" >> $GITHUB_ENV
           echo "TEST_SUITE=$TEST" >> $GITHUB_ENV
           echo "BROWSER=$BROWSER" >> $GITHUB_ENV
@@ -81,11 +72,9 @@ jobs:
             npm ci && break || sleep 20
           done
 
-      # ✅ En lugar de "npm run cy:verify", usamos "npx cypress verify"
       - name: Check Cypress installation
         run: npx cypress verify
 
-      # ✅ Ejecuta el test correspondiente según el input
       - name: Run tests
         env:
           CYPRESS_USER_EMAIL: ${{ secrets.CYPRESS_USER_EMAIL }}
@@ -100,7 +89,6 @@ jobs:
             npm run e2e:sanity -- --browser $BROWSER
           fi
 
-      # ✅ Generar el reporte solo si los tests corrieron
       - name: Generate report
         if: always()
         run: npm run report
@@ -118,20 +106,22 @@ jobs:
           echo "VERSION=$(cat version.txt 2>/dev/null || echo 'unknown')" >> $GITHUB_ENV
           echo "version: $(cat version.txt 2>/dev/null || echo 'unknown')"
 
-      # ✅ Estos pasos dependen del reporte JSON, y ahora sí existirá gracias al mochawesome
       - name: Extract failed test full titles from json
         if: failure() && hashFiles('cypress/reports/index.json') != ''
         run: |
-          FAILED=$(node -e "const data = require('./cypress/reports/index.json'); const titles = []; function findFails(obj) { if (obj && typeof obj === 'object') { if (obj.state === 'failed' && obj.fullTitle) titles.push(obj.fullTitle); for (const key in obj) findFails(obj[key]); } } findFails(data); console.log(titles.join(', '));")
+          FAILED=$(node -e "const data=require('./cypress/reports/index.json'); const titles=[]; function findFails(obj){if(obj&&typeof obj==='object'){if(obj.state==='failed'&&obj.fullTitle)titles.push(obj.fullTitle);for(const k in obj)findFails(obj[k]);}} findFails(data); console.log(titles.join(', '));")
           echo "FAILED_TESTS=$FAILED" >> $GITHUB_ENV
-          echo "Failed tests: $FAILED"
 
       - name: Extract failed test error message from json
         if: failure() && hashFiles('cypress/reports/index.json') != ''
         run: |
-          ERROR=$(node -e "const data = require('./cypress/reports/index.json'); let msg = ''; function findFail(obj) { if (obj && typeof obj === 'object') { if (obj.state === 'failed' && obj.err && obj.err.message && !msg) msg = obj.err.message; for (const key in obj) findFail(obj[key]); } } findFail(data); console.log(msg);")
+          ERROR=$(node -e "const data=require('./cypress/reports/index.json'); let msg=''; function findFail(obj){if(obj&&typeof obj==='object'){if(obj.state==='failed'&&obj.err&&obj.err.message&&!msg)msg=obj.err.message;for(const k in obj)findFail(obj[k]);}} findFail(data); console.log(msg);")
           echo "ERROR_MESSAGE=$ERROR" >> $GITHUB_ENV
-          echo "Error message: $ERROR"
+
+      - name: Sanitize folder name
+        run: |
+          SAFE_TEST_SUITE=$(echo "${{ env.TEST_SUITE }}" | tr ' /' '-')
+          echo "SAFE_TEST_SUITE=$SAFE_TEST_SUITE" >> $GITHUB_ENV
 
       - name: Notify Slack on Failure
         if: failure()
@@ -142,7 +132,7 @@ jobs:
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
             *${{ env.TEST_SUITE }} :bug:*
-            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
+            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }})
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
@@ -160,7 +150,7 @@ jobs:
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
             *${{ env.TEST_SUITE }} :white_check_mark:*
-            [Test Report](https://andreadev14.github.io/cypress_reports${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
+            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }})
             *Environment:* ${{ env.ENVIRONMENT }}
             *Browser:* ${{ env.BROWSER }}
             *Version:* ${{ env.VERSION }}
@@ -180,6 +170,6 @@ jobs:
         with:
           personal_token: ${{ secrets.GH_PAGES_TOKEN }}
           publish_dir: ./cypress/reports
-          destination_dir: ${{ env.ENVIRONMENT }}/$(echo "${{ env.TEST_SUITE }}" | tr ' ' '-')
+          destination_dir: ${{ env.ENVIRONMENT }}/${{ env.SAFE_TEST_SUITE }}
           publish_branch: gh-pages
           external_repository: andreadev14/cypress_reports
