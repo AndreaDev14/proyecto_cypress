@@ -59,45 +59,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
+      # Setting up the environment
       # This step will configure the environment variables based on the inputs
       # Then it will set the results through github outputs for the next step
       - name: Configure environment
-  env:
-    ENVIRONMENT: ${{ github.event.inputs.Environment || 'production' }}
-    TEST: ${{ github.event.inputs.Test || 'sanity test' }}
-    BROWSER: ${{ github.event.inputs.Browser || 'chrome' }}
-  run: |
-    if [ "${{ github.event_name }}" = "schedule" ]; then
-      echo "Scheduled run detected, using default values."
-      ENVIRONMENT='production'
-      TEST='sanity test'
-      BROWSER='chrome'
-    fi
-    echo "Configured Environment: $ENVIRONMENT"
-    echo "Test Suite: $TEST"
-    echo "Browser: $BROWSER"
-
-    case $ENVIRONMENT in
-      production)
-        echo "LOCATION=https://www.saucedemo.com/v1" >> "$GITHUB_ENV"
-        ;;
-      testing)
-        echo "LOCATION=https://www.saucedemo.com/v1" >> "$GITHUB_ENV"
-        ;;
-    esac
-
-    case $TEST in
-      "sanity test")
-        echo "TEST_SUITE=e2e:sanity-test" >> "$GITHUB_ENV"
-        ;;
-      "smoke test")
-        echo "TEST_SUITE=e2e:smoke-test" >> "$GITHUB_ENV"
-        ;;
-    esac
-
-    echo "ENVIRONMENT=$ENVIRONMENT" >> "$GITHUB_ENV"
-    echo "BROWSER=$BROWSER" >> "$GITHUB_ENV"
-
         env:
           # In order to use variables from github in our script we need to set them as environment variables
           ENVIRONMENT: ${{ github.event.inputs.Environment || 'production' }}
@@ -117,24 +82,21 @@ jobs:
           case $ENVIRONMENT in
             production)
               echo "LOCATION=https://www.saucedemo.com/v1" >> "$GITHUB_ENV"
-              echo "LOCATION=hhttps://www.saucedemo.com/v1" >> "$GITHUB_ENV"
               ;;
             testing)
-              echo "LOCATION=https://www.saucedemo.com/v1" >> "$GITHUB_ENV"
               echo "LOCATION=https://www.saucedemo.com/v1" >> "$GITHUB_ENV"
               ;;
           esac
           
-          if [ "$ENVIRONMENT" != "brasil" ]; then
-            case $TEST in
-              "sanity test")
-                echo "TEST_SUITE=e2e:sanity-test" >> "$GITHUB_ENV"
-                ;;
-              "smoke test")
-                echo "TEST_SUITE=e2e:smoke-test" >> "$GITHUB_ENV"
-                ;;
-            esac
-          fi
+          case $TEST in
+            "sanity test")
+              echo "TEST_SUITE=e2e:sanity-test" >> "$GITHUB_ENV"
+              ;;
+          "smoke test")
+            echo "TEST_SUITE=e2e:smoke-test" >> "$GITHUB_ENV"
+           ;;
+          esac
+
 
           echo "ENVIRONMENT=$ENVIRONMENT" >> "$GITHUB_ENV"
           echo "BROWSER=$BROWSER" >> "$GITHUB_ENV"
