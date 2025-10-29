@@ -73,10 +73,10 @@ jobs:
           
           case $TEST in
             "sanity test")
-              echo "TEST_SUITE=e2e:sanity-test" >> "$GITHUB_ENV"
+              echo "TEST_SUITE=e2e:sanity" >> "$GITHUB_ENV"
               ;;
             "smoke test")
-              echo "TEST_SUITE=e2e:smoke-test" >> "$GITHUB_ENV"
+              echo "TEST_SUITE=e2e:smoke" >> "$GITHUB_ENV"
               ;;
           esac
 
