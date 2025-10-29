@@ -89,20 +89,7 @@ jobs:
               echo "LOCATION=https://www.saucedemo.com/v1" >> "$GITHUB_ENV"
               ;;
           esac
-          
-          if [ "$ENVIRONMENT" != "brasil" ]; then
-            case $TEST in
-              "sanity test")
-                echo "TEST_SUITE=e2e:sanity-test" >> "$GITHUB_ENV"
-                ;;
-              "smoke test")
-                echo "TEST_SUITE=e2e:smoke-test" >> "$GITHUB_ENV"
-                ;;
-            esac
-          fi
 
-          echo "ENVIRONMENT=$ENVIRONMENT" >> "$GITHUB_ENV"
-          echo "BROWSER=$BROWSER" >> "$GITHUB_ENV"
        
 
       - name: Setup dependencies
@@ -138,7 +125,7 @@ jobs:
           path: cypress/reports/screenshots/**/*.png
 
       # Step to get  version from version.txt
-      - name: Get version from Cypress
+      - name: Get  version from Cypress
         if: always()
         run: |
           echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
