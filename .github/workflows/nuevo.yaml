@@ -98,14 +98,111 @@ jobs:
           BROWSER: ${{ env.BROWSER }}
         run: npm run $TEST_SUITE -- --browser $BROWSER
 
-      # 🔹 Mover estos pasos después de ejecutar Cypress
+      # 🔹 Generar reportes después de los tests
       - name: Merge mochawesome reports
         if: always()
-        run: npm run merge-reports || true
+        run: |
+          echo "Merging mochawesome JSON reports..."
+          npm run merge-reports || true
 
       - name: Generate HTML report
         if: always()
-        run: npm run generate-report || true
+        run: |
+          echo "Generating final HTML report..."
+          npm run generate-report || true
+
+      - name: List report files
+        if: always()
+        run: |
+          echo "Listing generated report files:"
+          ls -R cypress/reports || true
+
+      - name: Upload Cypress Screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cypress Error Screenshots
+          path: cypress/reports/screenshots/**/*.png
+
+      - name: Get version from Cypress
+        if: always()
+        run: |
+          echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
+          echo "version: $(cat version.txt)"
+
+      - name: Extract failed test full titles from json
+        if: failure()
+        run: |
+          FAILED=$(node -e "const data = require('./cypress/reports/output.json'); const titles = []; function findFails(obj) { if (obj && typeof obj === 'object') { if (obj.state === 'failed' && obj.fullTitle) titles.push(obj.fullTitle); for (const key in obj) findFails(obj[key]); } } findFails(data); console.log(titles.join(', '));")
+          echo "FAILED_TESTS=$FAILED" >> $GITHUB_ENV
+          echo "Failed tests: $FAILED"
+
+      - name: Extract failed test error message from json
+        if: failure()
+        run: |
+          ERROR=$(node -e "const data = require('./cypress/reports/output.json'); let msg = ''; function findFail(obj) { if (obj && typeof obj === 'object') { if (obj.state === 'failed' && obj.err && obj.err.message && !msg) msg = obj.err.message; for (const key in obj) findFail(obj[key]); } } findFail(data); console.log(msg);")
+          echo "ERROR_MESSAGE=$ERROR" >> $GITHUB_ENV
+          echo "Error message: $ERROR"
+
+      - name: Extract screenshot folder name
+        if: failure()
+        run: |
+          FOLDER=$(find cypress/reports/screenshots -mindepth 1 -maxdepth 1 -type d | head -n 1 | xargs basename)
+          echo "SCREENSHOT_FOLDER=$FOLDER" >> $GITHUB_ENV
+          echo "Screenshot folder: $FOLDER"
+
+      - name: Extract screenshot name (URL-encoded)
+        if: failure()
+        run: |
+          FILE_PATH=$(find cypress/reports/screenshots -type f -name '*.png' | head -n 1)
+          FILE_NAME=$(basename "$FILE_PATH")
+          FILE_NAME_ENCODED=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$FILE_NAME")
+
+          echo "SCREENSHOT_NAME=$FILE_NAME_ENCODED" >> $GITHUB_ENV
+          echo "Screenshot name (encoded): $FILE_NAME_ENCODED"
+
+      - name: Encode test suite for URL
+        if: failure()
+        run: |
+          ENCODED_TEST_SUITE=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${{ env.TEST_SUITE }}'))")
+          echo "ENCODED_TEST_SUITE=$ENCODED_TEST_SUITE" >> $GITHUB_ENV
+
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets._WEBHOOK_CYPRESS_NOTIFICATIONS }}
+          SLACK_COLOR: '#FF0000'
+          SLACKIFY_MARKDOWN: true
+          SLACK_MESSAGE: |
+            *:cypress_logo:  | ${{ env.TEST_SUITE }} :bug: *
+            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
+            [Screenshot Error](https://andreadev14.github.io/cypress_reports/blob/gh-pages/${{ env.ENVIRONMENT }}/${{ env.ENCODED_TEST_SUITE }}/screenshots/${{ env.SCREENSHOT_FOLDER }}/${{ env.SCREENSHOT_NAME }})
+
+            *Environment:* ${{ env.ENVIRONMENT }}
+            *Browser:* ${{ env.BROWSER }}
+            *Version:* ${{ env.VERSION }}
+            *Failed Test:* ${{ env.FAILED_TESTS }}
+            *Error Message:* ${{ env.ERROR_MESSAGE }}
+          SLACK_USERNAME: 'GitHub Actions'
+          SLACK_ICON_EMOJI: ':warning:'
+
+      - name: Notify Slack on Success
+        if: success()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_COLOR: 'good'
+          SLACKIFY_MARKDOWN: true
+          SLACK_MESSAGE: |
+            *:cypress_logo:  | ${{ env.TEST_SUITE }} ✅ *
+            [Test Report](https://andreadev14.github.io/cypress_reports/${{ env.ENVIRONMENT }}/${{ env.TEST_SUITE }})
+            
+            *Environment:* ${{ env.ENVIRONMENT }}
+            *Browser:* ${{ env.BROWSER }}
+            *Version:* ${{ env.VERSION }}
+          SLACK_USERNAME: 'GitHub Actions'
+          SLACK_ICON_EMOJI: ':white_check_mark:'
 
       - name: Upload Cypress Test Results
         if: always()
