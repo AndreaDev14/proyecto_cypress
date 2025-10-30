@@ -158,7 +158,7 @@ jobs:
         if: failure()
         uses: rtCamp/action-slack-notify@v2
         env:
-          SLACK_WEBHOOK: ${{ secrets.CYPRESS_USER_EMAIL }}
+          SLACK_WEBHOOK: ${{ secrets._WEBHOOK_CYPRESS_NOTIFICATIONS }}
           SLACK_COLOR: '#FF0000'
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
