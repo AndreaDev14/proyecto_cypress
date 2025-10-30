@@ -1,5 +1,5 @@
 import Constants from "../../support/constants";
-describe('Login en SauceDemo usando .env', () => {
+describe('Login en SauceDemo usando smoke', () => {
   beforeEach(() => {
     cy.visit(Constants.LOCATION) // baseUrl viene del .env
   })
