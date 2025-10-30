@@ -171,7 +171,7 @@ jobs:
         if: failure()
         uses: rtCamp/action-slack-notify@v2
         env:
-          SLACK_WEBHOOK: ${{ secrets._WEBHOOK_CYPRESS_NOTIFICATIONS }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_FAILED }}
           SLACK_COLOR: '#FF0000'
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
@@ -191,7 +191,7 @@ jobs:
         if: success()
         uses: rtCamp/action-slack-notify@v2
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_PASSED }}
           SLACK_COLOR: 'good'
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
