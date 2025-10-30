@@ -6,7 +6,6 @@ on:
   #   - cron: '30 11 * * *' #(08:30 AM Buenos Aires)
   #   - cron: '0 18 * * *'  #(15:00 PM Buenos Aires)
   workflow_dispatch:
-  
 
 jobs:
   run:
@@ -38,13 +37,13 @@ jobs:
         run: |
           rm -f version.txt
           rm -rf cypress/reports/*
-          
+
       - name: Run Tests
         uses: cypress-io/github-action@v6
         with:
           command: npm run ${{ env.TEST_SUITE }} -- --browser ${{ env.BROWSER }}
         env:
-           CYPRESS_USER_EMAIL: ${{ secrets.CYPRESS_USER_EMAIL }}
+          CYPRESS_USER_EMAIL: ${{ secrets.CYPRESS_USER_EMAIL }}
           CYPRESS_USER_PASSWORD: ${{ secrets.CYPRESS_USER_PASSWORD }}
           LOCATION: ${{ env.LOCATION }}
           TEST_SUITE: ${{ env.TEST_SUITE }}
@@ -97,7 +96,6 @@ jobs:
           echo "TEST_SUMMARY<<EOF" >> $GITHUB_ENV
           echo "$TEST_SUMMARY" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-          echo "Summary: $TEST_SUMMARY"
 
       - name: Extract suite metrics
         if: always()
@@ -122,7 +120,6 @@ jobs:
           echo "SUITE_METRICS<<EOF" >> $GITHUB_ENV
           echo "$SUITE_METRICS" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-          echo "Suite metrics: $SUITE_METRICS"
 
       - name: Extract titles of all failed tests
         if: failure()
@@ -148,8 +145,6 @@ jobs:
           echo "FAILED_TESTS<<EOF" >> $GITHUB_ENV
           echo "$FAILED_TESTS" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-          echo "Failed test titles:"
-          echo "$FAILED_TESTS"
 
       - name: Collect error messages
         if: failure()
@@ -175,8 +170,6 @@ jobs:
           echo "ERROR_MESSAGES<<EOF" >> $GITHUB_ENV
           echo "$ERROR_MESSAGES" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-          echo "Error messages:"
-          echo "$ERROR_MESSAGES"
 
       - name: Extract suite titles of all passed tests
         if: always()
@@ -200,15 +193,12 @@ jobs:
           echo "PASSED_SUITES<<EOF" >> $GITHUB_ENV
           echo "$PASSED_SUITES" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-          echo "Passed suite titles:"
-          echo "$PASSED_SUITES"
 
       - name: Extract screenshot folder name
         if: failure()
         run: |
           FOLDER=$(find cypress/reports/screenshots -mindepth 1 -maxdepth 1 -type d | head -n 1 | xargs basename)
           echo "SCREENSHOT_FOLDER=$FOLDER" >> $GITHUB_ENV
-          echo "Screenshot folder: $FOLDER"
 
       - name: Extract screenshot name (URL-encoded)
         if: failure()
@@ -216,9 +206,7 @@ jobs:
           FILE_PATH=$(find cypress/reports/screenshots -type f -name '*.png' | head -n 1)
           FILE_NAME=$(basename "$FILE_PATH")
           FILE_NAME_ENCODED=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$FILE_NAME")
-
           echo "SCREENSHOT_NAME=$FILE_NAME_ENCODED" >> $GITHUB_ENV
-          echo "Screenshot name (encoded): $FILE_NAME_ENCODED"
 
       - name: Encode test suite for URL
         if: failure()
@@ -230,16 +218,16 @@ jobs:
         if: failure()
         uses: rtCamp/action-slack-notify@v2
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_FAILED}}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_FAILED }}
           SLACK_COLOR: '#FF0000'
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
 
-            *:cypress_logo:  | ${{ env.TEST_SUITE }} :qa:*
+            *:cypress_logo: | ${{ env.TEST_SUITE }} :qa:*
             
             *Run:* [#${{ github.run_number }}](https://github.com/Mercap/-cypress/actions/runs/${{ github.run_id }})
             *Environment:* `${{ env.ENVIRONMENT }}`
-            * Version:* `${{ env.VERSION }}`
+            *Version:* `${{ env.VERSION }}`
             *Browser:* `${{ env.BROWSER }}`
 
             *📊 Summary:* ${{ env.TEST_SUMMARY }}
@@ -266,11 +254,11 @@ jobs:
           SLACKIFY_MARKDOWN: true
           SLACK_MESSAGE: |
 
-            *:cypress_logo:  | ${{ env.TEST_SUITE }} :qa:*
+            *:cypress_logo: | ${{ env.TEST_SUITE }} :qa:*
 
             *Run:* [#${{ github.run_number }}](https://github.com/andreadev14/cypress_reports/actions/runs/${{ github.run_id }})
             *Environment:* `${{ env.ENVIRONMENT }}`
-            * Version:* `${{ env._VERSION }}`
+            *Version:* `${{ env.VERSION }}`
             *Browser:* `${{ env.BROWSER }}`
 
             *📊 Summary:* ${{ env.TEST_SUMMARY }}
