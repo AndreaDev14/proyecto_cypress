@@ -267,7 +267,8 @@ jobs:
           SLACK_MESSAGE: |
 
             *:cypress_logo:  | ${{ env.TEST_SUITE }} :qa:*
-            [Run #${{ github.run_number }}](https://github.com/andreadev14/cypress_reports/actions/runs/${{ github.run_id }})
+
+            *Run:* [#${{ github.run_number }}](https://github.com/andreadev14/cypress_reports/actions/runs/${{ github.run_id }})
             *Environment:* `${{ env.ENVIRONMENT }}`
             * Version:* `${{ env._VERSION }}`
             *Browser:* `${{ env.BROWSER }}`
